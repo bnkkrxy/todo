@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sea-orm-cli = "1.1.19"
+dotenvy = "0.15.7"
+sea-orm = { version = "1.1.19", features = [ "sqlx-postgres", "runtime-tokio-rustls", "macros" ] }
+tokio = "1.49.0"
