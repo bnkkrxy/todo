@@ -1,7 +1,7 @@
 mod entities;
 use sea_orm::{Database, DbErr, EntityTrait, ActiveModelTrait, ActiveValue::Set, DatabaseConnection};
 use entities::{category, task};
-use std::io::{self, Write};
+use std::{collections::HashMap, io::{self, Write}};
 
 fn input_str(output: &str) -> String{
     print!("{}", output);
@@ -25,8 +25,7 @@ fn input_i32(output: &str) -> i32 {
     match input_str.trim().parse::<i32>() {
         Ok(num) => break num,
         Err(_) => println!("error"),
-
-    };
+        }
     };
     input_i32
 }
@@ -42,7 +41,7 @@ async fn enter_category (db: &DatabaseConnection) {
     let name_trimmed = input_str("category: ");
     if !name_trimmed.is_empty() {
         match add_category(&db, name_trimmed.to_owned()).await {
-            Ok(cat) => println!("Успешно создана категория: {} с ID: {}", cat.name, cat.id),
+            Ok(category) => println!("Успешно создана категория: {} с ID: {}", category.name, category.id),
             Err(e) => eprintln!("Ошибка при создании категории: {}", e),
         }
     }
@@ -72,13 +71,68 @@ async fn add_task(db: &DatabaseConnection, title: String, desc: String, categ_id
     }.insert(db).await
 }
 
-async fn enter_tasks() {}
+async fn enter_task(db: &DatabaseConnection) {
+    let title_trimmed = input_str("title: ");
+    let desc_trimmed = input_str("description (put enter if you don't want add it): ");
+    show_all_categories(db).await;
+    let categ_id = input_i32("choose category id: ");
 
-async fn show_all_tasks() {} //задачи+категории
+    if !title_trimmed.is_empty() {
+        match add_task(&db, title_trimmed, desc_trimmed, categ_id).await {
+            Ok(task) => println!("Задача успешно создана с заголовком {} и ID {} и категорией {}", task.title, task.id, task.category_id),
+            Err(e) => println!("Ошибка при создании: {}", e),
+        }
+    }
+}
+
+async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
+    let categories: Vec<category::Model> = category::Entity::find().all(db).await?;
+    let tasks_categories: HashMap<i32, category::Model> = categories
+            .into_iter()
+            .map(|categ| (categ.id, categ))
+            .collect();
+    let tasks: Vec<task::Model> = task::Entity::find().all(db).await?;
+
+    for t in tasks {
+        let category_name_for_task = match tasks_categories.get(&t.category_id) {
+            Some(categ) => &categ.name,
+            None => "without category",
+        };
+        println!("Задача: [{}] | Описание: {} | Категория: {} | Отметка о выполнении: {}", 
+            t.title, t.description, category_name_for_task, t.is_done);
+    }
+
+    Ok(())
+} 
 
 async fn get_tasks_by_category() {}
 
 async fn mark_as_done() {}
+
+fn main_menu() {
+    loop {
+    println!("---ЗАМЕТКИ---");
+    println!("Меню навигации: ");
+    let mut user_input = String::new();
+    io::stdin()
+        .read_line(&mut user_input)
+        .unwrap();
+    let choice: u8 = match user_input.trim().parse() {
+        Ok(num) => num,
+        Err(_) => {
+            println!("Введите число!");
+            continue;
+        }
+    };
+        
+    match choice {
+        1 => println!("jdkjv"),
+        0 => break,
+    
+        _ => println!(""),
+    }
+}
+}
 
 #[tokio::main]
 async fn main() -> Result<(), DbErr> {
@@ -87,9 +141,6 @@ async fn main() -> Result<(), DbErr> {
     println!("Соединение с базой установлено!");
     
     //match для взаимодействия
-    show_all_categories(&db).await;
-    delete_category(&db).await;
-
-    show_all_categories(&db).await;
+    show_all_tasks(&db).await;
     Ok(())
 }
