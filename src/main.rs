@@ -105,7 +105,21 @@ async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
     Ok(())
 } 
 
-async fn get_tasks_by_category() {}
+async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
+    let tasks: Vec<task::Model> = task::Entity::find().all(db).await?;
+    show_all_categories(db).await;
+    let categ_id = input_i32("Введите ID категории для вывода задач: ");
+    
+    
+    for t in tasks {
+        if t.category_id == categ_id {
+            println!("Задача: [{}] | Описание: {} | Отметка о выполнении: {}", t.title, t.description, t.is_done);
+        }
+        
+    } 
+    
+    Ok(())
+}
 
 async fn mark_as_done() {}
 
@@ -141,6 +155,6 @@ async fn main() -> Result<(), DbErr> {
     println!("Соединение с базой установлено!");
     
     //match для взаимодействия
-    show_all_tasks(&db).await;
+    print_tasks_by_category(&db).await;
     Ok(())
 }
