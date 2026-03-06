@@ -98,8 +98,8 @@ async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
             Some(categ) => &categ.name,
             None => "without category",
         };
-        println!("Задача: [{}] | Описание: {} | Категория: {} | Отметка о выполнении: {}", 
-            t.title, t.description, category_name_for_task, t.is_done);
+        println!("ID: {}. Задача: [{}] | Описание: {} | Категория: {} | Отметка о выполнении: {}", 
+            t.id, t.title, t.description, category_name_for_task, t.is_done);
     }
 
     Ok(())
@@ -109,8 +109,7 @@ async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
     let tasks: Vec<task::Model> = task::Entity::find().all(db).await?;
     show_all_categories(db).await;
     let categ_id = input_i32("Введите ID категории для вывода задач: ");
-    
-    
+        
     for t in tasks {
         if t.category_id == categ_id {
             println!("Задача: [{}] | Описание: {} | Отметка о выполнении: {}", t.title, t.description, t.is_done);
@@ -121,12 +120,32 @@ async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
     Ok(())
 }
 
-async fn mark_as_done() {}
+async fn mark_as_done(db: &DatabaseConnection) -> Result<(), DbErr> {
+    show_all_tasks(db).await;
+    let task_id = input_i32("Введите ID задачи, которую хотите отметить выполненной: ");
+    match task::Entity::find_by_id(task_id).one(db).await? {
+        Some(task) => {
+            let mut active_task: task::ActiveModel = task.into();
+            active_task.is_done = Set(true);
+            active_task.update(db).await?;
+            Ok(())
+        },
+        None => {
+            println!("Задачи с ID {} не существует.", task_id);
+            Ok(())
+        },
+    }
+}
 
 fn main_menu() {
     loop {
     println!("---ЗАМЕТКИ---");
     println!("Меню навигации: ");
+    println!("1. Добавить задачу \n
+                2. Вывести все задачи \n
+                3. Вывести все задачи из категории \n
+                4. Добавить новую категорию \n
+                5. Отметить задачу выполненной");
     let mut user_input = String::new();
     io::stdin()
         .read_line(&mut user_input)
@@ -154,7 +173,7 @@ async fn main() -> Result<(), DbErr> {
     let db = Database::connect(db_url).await?;
     println!("Соединение с базой установлено!");
     
-    //match для взаимодействия
-    print_tasks_by_category(&db).await;
+    mark_as_done(&db).await;
+    show_all_tasks(&db).await;
     Ok(())
 }
