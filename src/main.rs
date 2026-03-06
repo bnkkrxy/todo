@@ -159,30 +159,53 @@ async fn mark_as_done(db: &DatabaseConnection) -> Result<(), DbErr> {
     }
 }
 
-fn main_menu() {
+async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
     loop {
     println!("---ЗАМЕТКИ---");
     println!("Меню навигации: ");
     println!("1. Добавить задачу \n
                 2. Вывести все задачи \n
                 3. Вывести все задачи из категории \n
-                4. Добавить новую категорию \n
-                5. Отметить задачу выполненной");
-    let mut user_input = String::new();
-    io::stdin()
-        .read_line(&mut user_input)
-        .unwrap();
-    let choice: u8 = match user_input.trim().parse() {
-        Ok(num) => num,
-        Err(_) => {
-            println!("Введите число!");
-            continue;
-        }
-    };
+                4. Вывести все категории
+                5. Добавить новую категорию \n
+                6. Отметить задачу выполненной");
+
+    let mut user_input = input_i32("Выберите пункт меню: ");
         
-    match choice {
-        1 => println!("jdkjv"),
-        0 => break,
+    match user_input {
+        1 => {
+            if let Err(e) = create_task(db).await {
+                println!("Ошибка при создании задачи.");
+            }
+        },
+        2 => {
+            if let Err(e) = show_all_tasks(db).await {
+                println!(" ");
+            }
+        },
+        3 => {
+            if let Err(e) = print_tasks_by_category(db).await {
+                println!(" ");
+            }
+        },
+        4 => {
+            if let Err(e) = show_all_categories(db).await {
+                println!(" ");
+            }
+        },
+        5 => {
+            if let Err(e) = create_category(db).await {
+                println!(" ");
+            }
+        },
+        6 => {
+            if let Err(e) = mark_as_done(db).await {
+                println!(" ");
+            }
+        },
+        0 => {
+            return Ok(());
+        },
     
         _ => println!(""),
     }
@@ -195,7 +218,7 @@ async fn main() -> Result<(), DbErr> {
     let db = Database::connect(db_url).await?;
     println!("Соединение с базой установлено!");
     
-    mark_as_done(&db).await;
-    show_all_tasks(&db).await;
+    main_menu(&db).await?;
+
     Ok(())
 }
