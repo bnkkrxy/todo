@@ -108,6 +108,32 @@ async fn create_task(db: &DatabaseConnection) -> Result<(), DbErr>{
     }   
 }
 
+async fn delete_task(db: &DatabaseConnection) -> Result<(), DbErr> {
+    println!("Вывести все задачи или по категории?");
+    loop {
+        let choice = input_i32("Введите 1, если все, и 2, если по категории: ");
+        match choice {
+            1 => {
+                if let Err(e) = show_all_tasks(db).await {
+                    println!("Ошибка при выводе задач.");
+                }
+                break;
+            },
+            2 => {
+                if let Err(e) = print_tasks_by_category(db).await {
+                    println!("Ошибка при выводе задач по категории.");
+                }
+                break;
+            }
+            _ => println!("Нет такого варианта."),
+        }
+    }
+    let task_id = input_i32("Введите ID задачи: ");
+    task::Entity::delete_by_id(task_id).exec(db).await?;
+    println!("Задача с ID {} была удалена.", task_id);
+    Ok(())
+}
+
 async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
     let categories: Vec<category::Model> = category::Entity::find().all(db).await?;
     let tasks_categories: HashMap<i32, category::Model> = categories
@@ -166,10 +192,11 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
     println!("1. Добавить задачу");
     println!("2. Вывести все задачи");
     println!("3. Вывести все задачи из категории");
-    println!("4. Вывести все категории");
-    println!("5. Добавить новую категорию");
-    println!("6. Удалить категорию");
-    println!("7. Отметить задачу выполненной");
+    println!("4. Удалить задачу");
+    println!("5. Вывести все категории");
+    println!("6. Добавить новую категорию");
+    println!("7. Удалить категорию");
+    println!("8. Отметить задачу выполненной");
     println!("0. Завершить работу");
 
     let mut user_input = input_i32("Выберите пункт меню: ");
@@ -191,21 +218,26 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
             }
         },
         4 => {
+            if let Err(e) = delete_task(db).await {
+                println!("Ошибка при удалении задачи.");
+            }
+        }
+        5 => {
             if let Err(e) = show_all_categories(db).await {
                 println!("Ошибка при выводе категорий.");
             }
         },
-        5 => {
+        6 => {
             if let Err(e) = create_category(db).await {
                 println!("Ошибка при создании категории.");
             }
         },
-        6 => {
+        7 => {
             if let Err(e) = delete_category(db).await {
                 println!("Ошибка при удалении категории.");
             }
         }
-        7 => {
+        8 => {
             if let Err(e) = mark_as_done(db).await {
                 println!("Ошибка при отметки выолненной.");
             }
@@ -222,7 +254,7 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
 
 #[tokio::main]
 async fn main() -> Result<(), DbErr> {
-    let db_url = "postgres://myuser:5521@127.0.0.1:5433/tododb";
+    let db_url = "postgres://myuser:5521@127.0.0.1:5433/tododb"; //нужно скрыть ссылку
     let db = Database::connect(db_url).await?;
     println!("Соединение с базой установлено!");
     
