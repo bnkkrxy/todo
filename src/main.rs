@@ -1,5 +1,5 @@
 mod entities;
-use sea_orm::{Database, DbErr, EntityTrait, ActiveModelTrait, ActiveValue::Set, DatabaseConnection};
+use sea_orm::{ActiveModelTrait, ActiveValue::Set, Database, DatabaseConnection, DbErr, EntityTrait, sea_query::ExprTrait};
 use entities::{category, task};
 use std::{collections::HashMap, io::{self, Write}};
 
@@ -37,12 +37,19 @@ async fn add_category(db: &DatabaseConnection, name: String) -> Result<category:
     }.insert(db).await
 }
 
-async fn enter_category (db: &DatabaseConnection) {
-    let name_trimmed = input_str("category: ");
+async fn create_category (db: &DatabaseConnection) -> Result<category::Model, DbErr> {
+    let mut name_trimmed = input_str("category: ");
     if !name_trimmed.is_empty() {
-        match add_category(&db, name_trimmed.to_owned()).await {
-            Ok(category) => println!("Успешно создана категория: {} с ID: {}", category.name, category.id),
-            Err(e) => eprintln!("Ошибка при создании категории: {}", e),
+        name_trimmed = "Новая категория".to_string();
+    }
+    match add_category(&db, name_trimmed.to_owned()).await {
+        Ok(category) => {
+            println!("Успешно создана категория: {} с ID: {}", category.name, category.id);
+            Ok(category)
+        }
+        Err(e) => {
+            println!("Ошибка при создании категории: {}", e);
+            Err(e)
         }
     }
 }
@@ -71,18 +78,33 @@ async fn add_task(db: &DatabaseConnection, title: String, desc: String, categ_id
     }.insert(db).await
 }
 
-async fn enter_task(db: &DatabaseConnection) {
-    let title_trimmed = input_str("title: ");
-    let desc_trimmed = input_str("description (put enter if you don't want add it): ");
-    show_all_categories(db).await;
-    let categ_id = input_i32("choose category id: ");
-
-    if !title_trimmed.is_empty() {
-        match add_task(&db, title_trimmed, desc_trimmed, categ_id).await {
-            Ok(task) => println!("Задача успешно создана с заголовком {} и ID {} и категорией {}", task.title, task.id, task.category_id),
-            Err(e) => println!("Ошибка при создании: {}", e),
-        }
+async fn create_task(db: &DatabaseConnection) -> Result<(), DbErr>{
+    let title_trimmed = input_str("Введите название: ");
+    if title_trimmed.is_empty() {
+        println!("Название не может быть пустым.");
+        return Ok(());
     }
+    let desc_trimmed = input_str("Введите описание (если не хотите, нажмите enter): ");
+
+    show_all_categories(db).await?;
+    let mut categ_id = input_i32("Выберите категорию по ID или введите 0 для создания новой: ");
+    
+    if categ_id == 0 {
+        let new_categ = create_category(db).await?;
+        categ_id = new_categ.id;
+    }
+        
+    match add_task(&db, title_trimmed, desc_trimmed, categ_id).await {
+        Ok(task) => {
+            println!("Задача успешно создана с заголовком {} и ID {} и категорией {}", 
+            task.title, task.id, task.category_id);
+            Ok(())
+        },
+        Err(e) => {
+            println!("Ошибка при создании: {}", e);
+            Err(e)
+        } 
+    }   
 }
 
 async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
@@ -107,7 +129,7 @@ async fn show_all_tasks(db: &DatabaseConnection) -> Result<(), DbErr> {
 
 async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
     let tasks: Vec<task::Model> = task::Entity::find().all(db).await?;
-    show_all_categories(db).await;
+    show_all_categories(db).await?;
     let categ_id = input_i32("Введите ID категории для вывода задач: ");
         
     for t in tasks {
@@ -121,7 +143,7 @@ async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
 }
 
 async fn mark_as_done(db: &DatabaseConnection) -> Result<(), DbErr> {
-    show_all_tasks(db).await;
+    show_all_tasks(db).await?;
     let task_id = input_i32("Введите ID задачи, которую хотите отметить выполненной: ");
     match task::Entity::find_by_id(task_id).one(db).await? {
         Some(task) => {
