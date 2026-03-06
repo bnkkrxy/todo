@@ -24,7 +24,7 @@ fn input_i32(output: &str) -> i32 {
         .unwrap();
     match input_str.trim().parse::<i32>() {
         Ok(num) => break num,
-        Err(_) => println!("error"),
+        Err(_) => println!("Необходимо вводить только цифры."),
         }
     };
     input_i32
@@ -38,8 +38,8 @@ async fn add_category(db: &DatabaseConnection, name: String) -> Result<category:
 }
 
 async fn create_category (db: &DatabaseConnection) -> Result<category::Model, DbErr> {
-    let mut name_trimmed = input_str("category: ");
-    if !name_trimmed.is_empty() {
+    let mut name_trimmed = input_str("Введите нахвание новой категории: ");
+    if name_trimmed.is_empty() {
         name_trimmed = "Новая категория".to_string();
     }
     match add_category(&db, name_trimmed.to_owned()).await {
@@ -55,7 +55,8 @@ async fn create_category (db: &DatabaseConnection) -> Result<category::Model, Db
 }
 
 async fn delete_category(db: &DatabaseConnection) -> Result<(), DbErr> {
-    let categ_id = input_i32("id_category: ");
+    show_all_categories(db).await?;
+    let categ_id = input_i32("Введите ID категории: ");
     category::Entity::delete_by_id(categ_id).exec(db).await?;
     println!("Категория с ID {} была удалена", categ_id);
     Ok(())
@@ -64,7 +65,7 @@ async fn delete_category(db: &DatabaseConnection) -> Result<(), DbErr> {
 async fn show_all_categories(db: &DatabaseConnection) -> Result<(), DbErr> {
     let categories: Vec<category::Model> = category::Entity::find().all(db).await?;
     for category in categories {
-        println!("Category: {}, ID: {}", category.id, category.name);
+        println!("Категория: {}, ID: {}", category.id, category.name);
     }
     Ok(())
 }
@@ -136,7 +137,6 @@ async fn print_tasks_by_category(db: &DatabaseConnection) -> Result<(), DbErr>{
         if t.category_id == categ_id {
             println!("Задача: [{}] | Описание: {} | Отметка о выполнении: {}", t.title, t.description, t.is_done);
         }
-        
     } 
     
     Ok(())
@@ -163,12 +163,14 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
     loop {
     println!("---ЗАМЕТКИ---");
     println!("Меню навигации: ");
-    println!("1. Добавить задачу \n
-                2. Вывести все задачи \n
-                3. Вывести все задачи из категории \n
-                4. Вывести все категории
-                5. Добавить новую категорию \n
-                6. Отметить задачу выполненной");
+    println!("1. Добавить задачу");
+    println!("2. Вывести все задачи");
+    println!("3. Вывести все задачи из категории");
+    println!("4. Вывести все категории");
+    println!("5. Добавить новую категорию");
+    println!("6. Удалить категорию");
+    println!("7. Отметить задачу выполненной");
+    println!("0. Завершить работу");
 
     let mut user_input = input_i32("Выберите пункт меню: ");
         
@@ -180,34 +182,40 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
         },
         2 => {
             if let Err(e) = show_all_tasks(db).await {
-                println!(" ");
+                println!("Ошибка при выводе задач.");
             }
         },
         3 => {
             if let Err(e) = print_tasks_by_category(db).await {
-                println!(" ");
+                println!("Ошибка при выводе задач по категории.");
             }
         },
         4 => {
             if let Err(e) = show_all_categories(db).await {
-                println!(" ");
+                println!("Ошибка при выводе категорий.");
             }
         },
         5 => {
             if let Err(e) = create_category(db).await {
-                println!(" ");
+                println!("Ошибка при создании категории.");
             }
         },
         6 => {
+            if let Err(e) = delete_category(db).await {
+                println!("Ошибка при удалении категории.");
+            }
+        }
+        7 => {
             if let Err(e) = mark_as_done(db).await {
-                println!(" ");
+                println!("Ошибка при отметки выолненной.");
             }
         },
         0 => {
+            println!("Выход из программы...");
             return Ok(());
         },
     
-        _ => println!(""),
+        _ => println!("Такого пункта не существует!"),
     }
 }
 }
