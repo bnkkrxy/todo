@@ -1,4 +1,6 @@
 mod entities;
+use dotenvy::dotenv;
+use std::env;
 use sea_orm::{ActiveModelTrait, ActiveValue::Set, Database, DatabaseConnection, DbErr, EntityTrait, sea_query::ExprTrait};
 use entities::{category, task};
 use std::{collections::HashMap, io::{self, Write}};
@@ -254,7 +256,8 @@ async fn main_menu(db: &DatabaseConnection) -> Result<(), DbErr>{
 
 #[tokio::main]
 async fn main() -> Result<(), DbErr> {
-    let db_url = "postgres://myuser:5521@127.0.0.1:5433/tododb"; //нужно скрыть ссылку
+    dotenv().ok();
+    let db_url = env::var("DATABASE_URL").unwrap();
     let db = Database::connect(db_url).await?;
     println!("Соединение с базой установлено!");
     
